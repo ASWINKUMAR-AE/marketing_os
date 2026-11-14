@@ -1,0 +1,65 @@
+{
+  "name": "03-image-renderer",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "render-sub-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5001/render",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"template\": {{$json.template || \"tip\"}},\n  \"headline\": {{$json.headline || $json.topic}},\n  \"subtext\": {{$json.subtext || \"ZetHub • AI SaaS & IT Solutions\"}},\n  \"format\": {{$json.format || \"1080x1350\"}}\n}"
+      },
+      "id": "call-render-service",
+      "name": "Render Service :5001",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const renderRes = $input.first().json;\nreturn {\n  json: {\n    status: 'success',\n    local_path: renderRes.local_path,\n    image_url: renderRes.image_url,\n    filename: renderRes.filename,\n    publishing_status: 'READY'\n  }\n};"
+      },
+      "id": "format-render-output",
+      "name": "Set Status Ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Render Service :5001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Service :5001": {
+      "main": [
+        [
+          {
+            "node": "Set Status Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

@@ -1,0 +1,86 @@
+{
+  "name": "08-analytics-report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [7],
+              "triggerAtHour": 20,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "analytics-schedule",
+      "name": "Sunday 20:00 IST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8000/api/analytics/overview"
+      },
+      "id": "fetch-overview-stats",
+      "name": "Fetch Channel Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": "00-ai-gateway",
+        "mode": "each",
+        "fields": {
+          "values": [
+            {
+              "name": "system",
+              "value": "You are ZetHub's Senior Analytics Reporting Agent. Return JSON with report_title, executive_summary, channel_breakdown, and recommended_adjustments."
+            },
+            {
+              "name": "prompt",
+              "value": "=Analyze these ZetHub marketing performance metrics and formulate the weekly executive review:\n{{JSON.stringify($json)}}"
+            }
+          ]
+        }
+      },
+      "id": "generate-report-ai",
+      "name": "AI Gateway: Weekly Report",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [660, 300]
+    }
+  ],
+  "connections": {
+    "Sunday 20:00 IST": {
+      "main": [
+        [
+          {
+            "node": "Fetch Channel Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Channel Metrics": {
+      "main": [
+        [
+          {
+            "node": "AI Gateway: Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

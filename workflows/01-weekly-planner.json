@@ -1,0 +1,132 @@
+{
+  "name": "01-weekly-planner",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [1],
+              "triggerAtHour": 7,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "schedule-planner",
+      "name": "Weekly Monday 07:00 IST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8000/api/settings"
+      },
+      "id": "get-settings",
+      "name": "Fetch Brand Config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": "00-ai-gateway",
+        "mode": "each",
+        "fields": {
+          "values": [
+            {
+              "name": "system",
+              "value": "You are ZetHub's Senior AI Marketing Strategist. Output valid JSON only with keys: week_focus, strategy_summary, plans (array of 7 items with day_offset, topic, pillar, target_platform, visual_format, brief, primary_cta)."
+            },
+            {
+              "name": "prompt",
+              "value": "=Generate the 7-day marketing strategy and content plan for ZetHub (AI SaaS & IT solutions startup in Madurai). Target: Indian SMEs, textile & manufacturing leaders, and founders looking for practical automation. Brand brief: {{JSON.stringify($json)}}"
+            }
+          ]
+        }
+      },
+      "id": "call-gateway",
+      "name": "AI Gateway: Plan Week",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json.data;\nconst plans = result.plans || [];\n\nreturn plans.map((p, idx) => {\n  const now = new Date();\n  const schedDate = new Date(now.getTime() + (p.day_offset || (idx + 1)) * 86400000);\n  schedDate.setHours(10, 30, 0, 0);\n  \n  return {\n    json: {\n      content_id: 'ZH-IDEA-' + Math.random().toString(36).substring(2, 9).toUpperCase(),\n      topic: p.topic,\n      platform: p.target_platform || 'LinkedIn',\n      content_category: p.pillar || 'Educational',\n      target_audience: p.target_audience || 'Indian SMEs & Founders',\n      cta: p.primary_cta || 'Visit zethub.in',\n      scheduled_at: schedDate.toISOString().replace('T', ' ').substring(0, 19),\n      approval_status: 'DRAFT',\n      publishing_status: 'IDEA',\n      brief: p.brief || ''\n    }\n  };\n});"
+      },
+      "id": "transform-plans",
+      "name": "Format Calendar Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/api/content/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"topic\": {{$json.topic}},\n  \"platform\": {{$json.platform}},\n  \"category\": {{$json.content_category}},\n  \"scheduled_at\": {{$json.scheduled_at}}\n}"
+      },
+      "id": "save-content-backend",
+      "name": "Save to ZetHub DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Weekly Monday 07:00 IST": {
+      "main": [
+        [
+          {
+            "node": "Fetch Brand Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Brand Config": {
+      "main": [
+        [
+          {
+            "node": "AI Gateway: Plan Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Gateway: Plan Week": {
+      "main": [
+        [
+          {
+            "node": "Format Calendar Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Calendar Rows": {
+      "main": [
+        [
+          {
+            "node": "Save to ZetHub DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

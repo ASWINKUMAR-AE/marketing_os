@@ -1,0 +1,137 @@
+{
+  "name": "10-watchdog",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "watchdog-poll",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8000/api/health"
+      },
+      "id": "check-backend-health",
+      "name": "Check Backend Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status}}",
+              "value2": "healthy"
+            }
+          ]
+        }
+      },
+      "id": "health-check-eval",
+      "name": "Is System Healthy?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-webhook",
+        "options": {}
+      },
+      "id": "telegram-killswitch-hook",
+      "name": "Telegram Killswitch Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = ($input.first().json.body?.message?.text || '').trim();\nlet action = 'none';\nlet setting_value = 'FALSE';\n\nif (text.startsWith('/pause')) {\n  action = 'PAUSE';\n  setting_value = 'FALSE';\n} else if (text.startsWith('/resume')) {\n  action = 'RESUME';\n  setting_value = 'TRUE';\n}\n\nreturn {\n  json: {\n    command: text,\n    action: action,\n    setting_key: 'AUTO_PUBLISH',\n    setting_value: setting_value\n  }\n};"
+      },
+      "id": "parse-telegram-cmd",
+      "name": "Parse /pause or /resume",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 520]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/api/settings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"setting_key\": {{$json.setting_key}},\n  \"setting_value\": {{$json.setting_value}}\n}"
+      },
+      "id": "update-publish-mode",
+      "name": "Toggle AUTO_PUBLISH",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 520]
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Check Backend Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Backend Health": {
+      "main": [
+        [
+          {
+            "node": "Is System Healthy?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Killswitch Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse /pause or /resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse /pause or /resume": {
+      "main": [
+        [
+          {
+            "node": "Toggle AUTO_PUBLISH",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

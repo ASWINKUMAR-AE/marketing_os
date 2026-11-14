@@ -1,0 +1,126 @@
+{
+  "name": "04-publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "poll-publisher",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8000/api/settings"
+      },
+      "id": "check-autopublish",
+      "name": "Check Auto-Publish & Kill Switch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.AUTO_PUBLISH}}",
+              "value2": "TRUE"
+            },
+            {
+              "value1": "={{$json.EMERGENCY_KILL_SWITCH}}",
+              "operation": "notEqual",
+              "value2": "TRUE"
+            }
+          ]
+        }
+      },
+      "id": "switch-filter",
+      "name": "Is Auto-Publish Allowed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8000/api/content?status=SCHEDULED"
+      },
+      "id": "fetch-due-content",
+      "name": "Fetch Due Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.first().json;\nif (!Array.isArray(items) || items.length === 0) {\n  return [];\n}\n\n// Dry-run simulation and approval notice\nreturn items.map(post => ({\n  json: {\n    calendar_id: post.id,\n    content_id: post.content_id,\n    platform: post.platform,\n    topic: post.topic,\n    caption: post.caption,\n    image_url: post.image_url,\n    mode: 'DRY_RUN_TELEGRAM'\n  }\n}));"
+      },
+      "id": "prepare-publish-payload",
+      "name": "Prepare Platform Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 220]
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Check Auto-Publish & Kill Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Auto-Publish & Kill Switch": {
+      "main": [
+        [
+          {
+            "node": "Is Auto-Publish Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Auto-Publish Allowed?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Due Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Due Content": {
+      "main": [
+        [
+          {
+            "node": "Prepare Platform Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

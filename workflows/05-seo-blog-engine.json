@@ -1,0 +1,103 @@
+{
+  "name": "05-seo-blog-engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [2, 4],
+              "triggerAtHour": 14,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "seo-schedule",
+      "name": "Tue & Thu 14:00 IST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8000/api/seo/keywords"
+      },
+      "id": "get-keywords",
+      "name": "Pick Focus Keyword",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/api/blogs/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"keyword\": {{$json[0].keyword || \"AI automation for Indian SMEs\"}},\n  \"search_intent\": {{$json[0].search_intent || \"Commercial\"}}\n}"
+      },
+      "id": "generate-blog-api",
+      "name": "AI Draft Blog Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.indexnow.org/indexnow",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"host\": \"zethub.in\",\n  \"key\": \"zethub-indexnow-key\",\n  \"urlList\": [\n    {{JSON.stringify($json.url)}}\n  ]\n}"
+      },
+      "id": "ping-indexnow",
+      "name": "Ping IndexNow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Tue & Thu 14:00 IST": {
+      "main": [
+        [
+          {
+            "node": "Pick Focus Keyword",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Focus Keyword": {
+      "main": [
+        [
+          {
+            "node": "AI Draft Blog Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Draft Blog Post": {
+      "main": [
+        [
+          {
+            "node": "Ping IndexNow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

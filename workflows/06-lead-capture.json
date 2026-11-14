@@ -1,0 +1,77 @@
+{
+  "name": "06-lead-capture",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "leads",
+        "options": {}
+      },
+      "id": "lead-webhook",
+      "name": "Inbound Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/api/leads/intake",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"full_name\": {{$json.body.full_name || $json.body.name || \"Website Prospect\"}},\n  \"email\": {{$json.body.email}},\n  \"phone\": {{$json.body.phone || \"\"}},\n  \"company\": {{$json.body.company || \"\"}},\n  \"industry\": {{$json.body.industry || \"\"}},\n  \"message\": {{$json.body.message || \"Inquiry from website\"}},\n  \"consent\": {{Boolean($json.body.consent !== false)}},\n  \"source\": {{$json.body.source || \"Website Form\"}}\n}"
+      },
+      "id": "score-lead-api",
+      "name": "AI Score & Save Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.lead_score}}",
+              "operation": "largerEqual",
+              "value2": 75
+            }
+          ]
+        }
+      },
+      "id": "hot-lead-check",
+      "name": "Is Hot Lead (>=75)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Inbound Lead Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Score & Save Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Score & Save Lead": {
+      "main": [
+        [
+          {
+            "node": "Is Hot Lead (>=75)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

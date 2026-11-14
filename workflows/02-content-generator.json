@@ -1,0 +1,107 @@
+{
+  "name": "02-content-generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24,
+              "triggerAtHour": 6,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger-content",
+      "name": "Daily 06:00 IST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8000/api/content?status=IDEA"
+      },
+      "id": "get-due-ideas",
+      "name": "Fetch Due Ideas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": "00-ai-gateway",
+        "mode": "each",
+        "fields": {
+          "values": [
+            {
+              "name": "system",
+              "value": "You are ZetHub's Content Creation and QA Engine. Output JSON only."
+            },
+            {
+              "name": "prompt",
+              "value": "=Create production copy for ZetHub (https://zethub.in). Topic: {{$json.topic}}, Platform: {{$json.platform}}, Category: {{$json.content_category}}."
+            }
+          ]
+        }
+      },
+      "id": "generate-content-ai",
+      "name": "Generate via AI Gateway",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst data = item.data || {};\n\n// Content QA Validation Rules\nconst caption = data.caption || data.content || '';\nconst hashtags = data.hashtags || '';\nconst bannedWords = ['guaranteed profits', 'get rich quick', '100% free money', 'miracle solution'];\n\nlet hasBanned = false;\nfor (const w of bannedWords) {\n  if (caption.toLowerCase().includes(w)) {\n    hasBanned = true;\n    break;\n  }\n}\n\nconst lengthValid = caption.length > 50 && caption.length <= 3000;\nconst passed = !hasBanned && lengthValid;\n\nreturn {\n  json: {\n    topic: item.topic,\n    caption: caption,\n    hashtags: hashtags,\n    qa_passed: passed,\n    qa_notes: passed ? 'QA passed automatically' : (hasBanned ? 'Banned keyword detected' : 'Length invalid'),\n    status: passed ? 'DRAFTED' : 'FAILED'\n  }\n};"
+      },
+      "id": "qa-gate-node",
+      "name": "QA Gate & Brand Voice Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    }
+  ],
+  "connections": {
+    "Daily 06:00 IST": {
+      "main": [
+        [
+          {
+            "node": "Fetch Due Ideas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Due Ideas": {
+      "main": [
+        [
+          {
+            "node": "Generate via AI Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate via AI Gateway": {
+      "main": [
+        [
+          {
+            "node": "QA Gate & Brand Voice Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

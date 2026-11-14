@@ -1,0 +1,86 @@
+{
+  "name": "07-newsletter",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [5],
+              "triggerAtHour": 10,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "newsletter-schedule",
+      "name": "Weekly Friday 10:00 IST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8000/api/blogs"
+      },
+      "id": "fetch-latest-blog",
+      "name": "Get Latest Blog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": "00-ai-gateway",
+        "mode": "each",
+        "fields": {
+          "values": [
+            {
+              "name": "system",
+              "value": "You are ZetHub's Email Newsletter Strategist. Output JSON only with keys: subject_line, preview_text, html_content, text_content."
+            },
+            {
+              "name": "prompt",
+              "value": "=Compile this week's ZetHub Tech Pulse newsletter for Indian business owners and developers. Spotlight this article: {{JSON.stringify($json[0] || {title: 'AI Automation for Indian Enterprises'})}}"
+            }
+          ]
+        }
+      },
+      "id": "generate-newsletter-ai",
+      "name": "AI Gateway: Draft Newsletter",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [660, 300]
+    }
+  ],
+  "connections": {
+    "Weekly Friday 10:00 IST": {
+      "main": [
+        [
+          {
+            "node": "Get Latest Blog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Latest Blog": {
+      "main": [
+        [
+          {
+            "node": "AI Gateway: Draft Newsletter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

@@ -1,0 +1,87 @@
+{
+  "name": "09-competitor-watch",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24,
+              "triggerAtHour": 7,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "competitor-schedule",
+      "name": "Daily 07:00 IST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=AI+SaaS+India+OR+textile+ERP&hl=en-IN&gl=IN&ceid=IN:en",
+        "options": {}
+      },
+      "id": "rss-feed-news",
+      "name": "Fetch Industry RSS Trends",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [440, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": "00-ai-gateway",
+        "mode": "each",
+        "fields": {
+          "values": [
+            {
+              "name": "system",
+              "value": "You are ZetHub's Competitor Intelligence Specialist. Return JSON with market_pulse, content_gap_opportunities, and recommended_counter_topics."
+            },
+            {
+              "name": "prompt",
+              "value": "=Analyze these recent industry headlines and propose 3 strategic content counter-strikes for ZetHub (Madurai):\n{{JSON.stringify($input.all().slice(0, 5).map(i => i.json.title))}}"
+            }
+          ]
+        }
+      },
+      "id": "analyze-competitors-ai",
+      "name": "AI Gateway: Competitor Insights",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Daily 07:00 IST": {
+      "main": [
+        [
+          {
+            "node": "Fetch Industry RSS Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Industry RSS Trends": {
+      "main": [
+        [
+          {
+            "node": "AI Gateway: Competitor Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

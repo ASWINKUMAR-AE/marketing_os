@@ -1,0 +1,42 @@
+# Environments and Secrets
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Node
+node_modules/
+.npm-cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Render Service Output
+render_service/output/*.png
+
+# n8n local data
+n8n_data/
+.n8n/
+
+# Database Backups & Logs
+database/backups/
+database/global_priv_backup/
+*.log
+*.err
+
+# OS Files
+Thumbs.db
+[Dd]esktop.ini
+.DS_Store
+

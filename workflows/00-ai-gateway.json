@@ -1,0 +1,129 @@
+{
+  "name": "00-ai-gateway",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "gateway-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://vireonix.ai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"auto\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": {{ JSON.stringify($json.system || \"You are ZetHub AI marketing engine.\") }}\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.prompt || \"Generate marketing copy.\") }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "id": "vireonix-http",
+      "name": "Call Vireonix AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nlet rawContent = item.choices?.[0]?.message?.content || '';\n\n// Strip markdown code fences if wrapped in ```json ... ```\nlet cleaned = rawContent.trim();\nconst fenceMatch = cleaned.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/i);\nif (fenceMatch) {\n  cleaned = fenceMatch[1].trim();\n}\n\nlet parsed = null;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = { raw: cleaned, parse_error: e.message };\n}\n\nreturn {\n  json: {\n    status: 'success',\n    provider: 'vireonix',\n    raw: rawContent,\n    cleaned: cleaned,\n    data: parsed\n  }\n};"
+      },
+      "id": "clean-json",
+      "name": "Strip Code Fences & Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GROQ_API_KEY || ''}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": {{ JSON.stringify($json.system || \"You are ZetHub AI marketing engine.\") }}\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.prompt || \"Generate marketing copy.\") }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "groq-fallback",
+      "name": "Groq Fallback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 420]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Call Vireonix AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Vireonix AI": {
+      "main": [
+        [
+          {
+            "node": "Strip Code Fences & Parse JSON",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Groq Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Fallback": {
+      "main": [
+        [
+          {
+            "node": "Strip Code Fences & Parse JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+
